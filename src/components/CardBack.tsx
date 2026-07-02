@@ -22,6 +22,10 @@ export const CardBack: React.FC = () => {
 
   if (!farmerData) return null;
 
+  console.log("=== CARDBACK RENDERING DEBUG ===");
+  console.table(farmerData.landRecords);
+  console.log("Rendering records:", farmerData.landRecords.length);
+
   const handleCopyEnrollment = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (farmerData.enrollmentId) {
@@ -137,24 +141,27 @@ export const CardBack: React.FC = () => {
               </thead>
               <tbody>
                 {farmerData.landRecords.length > 0
-                  ? farmerData.landRecords.map((rec, idx) => (
-                      <tr
-                        key={idx}
-                        style={{ background: idx % 2 === 0 ? '#fff' : '#f9fafb' }}
-                      >
-                        <td style={tdStyle}>{rec.state || '—'}</td>
-                        <td style={tdStyle}>{rec.district || '—'}</td>
-                        <td style={tdStyle}>{rec.subDistrict || '—'}</td>
-                        <td style={tdStyle}>{rec.village || '—'}</td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{rec.surveyNumber || '—'}</td>
-                        <td style={tdStyle}>{rec.ownerName || '—'}</td>
-                        <td style={tdStyle}>{rec.identifierType || '—'}</td>
-                        <td style={tdStyle}>{rec.ownerType || '—'}</td>
-                        <td style={tdStyle}>{rec.shareType || '—'}</td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{rec.landArea || '—'}</td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{rec.extentAssigned || '0.000000'}</td>
-                      </tr>
-                    ))
+                  ? farmerData.landRecords.map((rec, idx) => {
+                      console.log("Rendering row", idx, rec);
+                      return (
+                        <tr
+                          key={idx}
+                          style={{ background: idx % 2 === 0 ? '#fff' : '#f9fafb' }}
+                        >
+                          <td style={tdStyle}>{rec.state || '—'}</td>
+                          <td style={tdStyle}>{rec.district || '—'}</td>
+                          <td style={tdStyle}>{rec.subDistrict || '—'}</td>
+                          <td style={tdStyle}>{rec.village || '—'}</td>
+                          <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{rec.surveyNumber || '—'}</td>
+                          <td style={tdStyle}>{rec.ownerName || '—'}</td>
+                          <td style={tdStyle}>{rec.identifierType || '—'}</td>
+                          <td style={tdStyle}>{rec.ownerType || '—'}</td>
+                          <td style={tdStyle}>{rec.shareType || '—'}</td>
+                          <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{rec.landArea || '—'}</td>
+                          <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{rec.extentAssigned || '0.000000'}</td>
+                        </tr>
+                      );
+                    })
                   : /* Empty rows placeholder */
                     Array.from({ length: 3 }).map((_, i) => (
                       <tr key={i}>

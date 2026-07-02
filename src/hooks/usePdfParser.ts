@@ -163,6 +163,10 @@ export function usePdfParser() {
         qr: imagesResult.qrCodeImage || imagesResult.qrCodeText || enrollmentId,
       };
 
+      console.log("=== USEPDFPARSER DEBUG ===");
+      console.table(finalData.landRecords);
+      console.log("State records:", finalData.landRecords.length);
+
       setFarmerData(finalData);
       console.log("Completed Successfully");
 

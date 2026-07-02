@@ -92,6 +92,41 @@ function groupIntoRows(items: PDFTextItem[]): RowCell[][] {
   return yLines.map((lineItems) => buildRowCells(lineItems)).filter((r) => r.length > 0);
 }
 
+interface GroupedRow {
+  cells: RowCell[];
+  y: number;
+}
+
+function groupIntoRowsWithY(items: PDFTextItem[]): GroupedRow[] {
+  if (items.length === 0) return [];
+
+  const sorted = [...items].sort((a, b) => {
+    const yDiff = b.y - a.y;
+    if (Math.abs(yDiff) > 3) return yDiff;
+    return a.x - b.x;
+  });
+
+  const yLines: PDFTextItem[][] = [];
+  let currentLine: PDFTextItem[] = [sorted[0]];
+  let lastY = sorted[0].y;
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (Math.abs(sorted[i].y - lastY) <= 3) {
+      currentLine.push(sorted[i]);
+    } else {
+      yLines.push(currentLine);
+      currentLine = [sorted[i]];
+      lastY = sorted[i].y;
+    }
+  }
+  yLines.push(currentLine);
+
+  return yLines.map((lineItems) => ({
+    cells: buildRowCells(lineItems),
+    y: lineItems[0].y
+  })).filter((r) => r.cells.length > 0);
+}
+
 /* ── Known field labels and their stop-labels ─────────────────────────────── *
  *  Each field's value starts after its own label and ends before the
  *  next field's label begins. This prevents label–value concatenation.      */
@@ -349,7 +384,6 @@ function extractFarmerId(lines: string[], enrollmentId: string): string {
  *    Assigned    ≈ 656
  *
  *  Data rows start after the header (after "Acre,Hectare" row) and end
- *  before "about:blank" or page footer.
  * ────────────────────────────────────────────────────────────────────────────── */
 
 interface ColumnDef {
@@ -358,27 +392,29 @@ interface ColumnDef {
   xMax: number;
 }
 
-// Column boundaries: each cell is assigned to the column whose X range contains it
+
+
 const LAND_COLUMNS: ColumnDef[] = [
-  { key: 'state',          xMin: 0,   xMax: 100 },
-  { key: 'district',       xMin: 100, xMax: 155 },
-  { key: 'subDistrict',    xMin: 155, xMax: 210 },
-  { key: 'village',        xMin: 210, xMax: 260 },
-  { key: 'surveyNumber',   xMin: 260, xMax: 300 },
-  { key: 'surveySubNo',    xMin: 300, xMax: 335 },
+  { key: 'state',          xMin: 45,  xMax: 110 },
+  { key: 'district',       xMin: 110, xMax: 160 },
+  { key: 'subDistrict',    xMin: 160, xMax: 215 },
+  { key: 'village',        xMin: 215, xMax: 265 },
+  { key: 'surveyNumber',   xMin: 265, xMax: 303 },
+  { key: 'surveySubNo',    xMin: 303, xMax: 335 },
   { key: 'ownerName',      xMin: 335, xMax: 385 },
-  { key: 'identifierName', xMin: 385, xMax: 450 },
-  { key: 'ownerType',      xMin: 450, xMax: 505 },
-  { key: 'shareType',      xMin: 505, xMax: 555 },
-  { key: 'landArea',       xMin: 555, xMax: 645 },
+  { key: 'identifierName', xMin: 385, xMax: 455 },
+  { key: 'ownerType',      xMin: 455, xMax: 505 },
+  { key: 'shareType',      xMin: 505, xMax: 560 },
+  { key: 'landArea',       xMin: 560, xMax: 645 },
   { key: 'extentAssigned', xMin: 645, xMax: 800 },
 ];
 
-function assignColumn(x: number): string | null {
-  for (const col of LAND_COLUMNS) {
-    if (x >= col.xMin && x < col.xMax) return col.key;
+function assignColumnByRange(x: number): number {
+  for (let i = 0; i < LAND_COLUMNS.length; i++) {
+    const col = LAND_COLUMNS[i];
+    if (x >= col.xMin && x < col.xMax) return i;
   }
-  return null;
+  return -1;
 }
 
 export function parseLandRecords(
@@ -390,113 +426,170 @@ export function parseLandRecords(
     return [];
   }
 
-  const page1Items = pdfItems.filter((item) => item.pageNum === 1 && item.str.trim() !== '');
+  const gridRows: { y: number; cells: string[] }[] = [];
+  let stopParsing = false;
 
-  // Find the "Land Ownership Details" header
-  const landHeaderItem = page1Items.find((item) =>
-    /Land\s*Ownership\s*Details/i.test(item.str)
-  );
-  if (!landHeaderItem) {
-    console.log('parseLandRecords: "Land Ownership Details" header not found');
-    return [];
-  }
+  const pageNums = Array.from(new Set(pdfItems.map((item) => item.pageNum))).sort((a, b) => a - b);
+  console.log('parseLandRecords: scanning pages:', pageNums);
 
-  // Data items are BELOW the header (lower Y values in PDF coordinates)
-  // Find the last header row (contains "Acre,Hectare")
-  const headerEndItem = page1Items.find((item) =>
-    /Acre|Hectare/i.test(item.str)
-  );
-  const dataStartY = headerEndItem ? headerEndItem.y - 3 : landHeaderItem.y - 80;
+  for (const p of pageNums) {
+    if (stopParsing) break;
 
-  // Footer boundary
-  const footerItem = page1Items.find((item) =>
-    /about:blank|^\d+\/\d+$/i.test(item.str.trim())
-  );
-  const dataEndY = footerItem ? footerItem.y + 3 : 0;
+    const pageItems = pdfItems.filter((item) => item.pageNum === p && item.str.trim() !== '');
+    if (pageItems.length === 0) continue;
 
-  // Get data items between header and footer
-  const dataItems = page1Items.filter(
-    (item) => item.y < dataStartY && item.y > dataEndY
-  );
+    let dataStartY = 570;
+    let pageEndY = 0;
 
-  if (dataItems.length === 0) {
-    console.log('parseLandRecords: no data items found below table header');
-    return [];
-  }
-
-  // Group data items into rows by Y proximity
-  const rows = groupIntoRows(dataItems);
-
-  console.log(`parseLandRecords: Found ${rows.length} data rows`);
-
-  // First pass: assign each cell in each row to a column
-  const rawRows: Record<string, string>[] = [];
-  for (const row of rows) {
-    const record: Record<string, string> = {};
-    for (const cell of row) {
-      const colKey = assignColumn(cell.startX);
-      if (colKey) {
-        record[colKey] = (record[colKey] ? `${record[colKey]} ${cell.text.trim()}` : cell.text.trim());
+    if (p === 1) {
+      const landHeaderItem = pageItems.find((item) =>
+        /Land\s*Ownership\s*Details/i.test(item.str)
+      );
+      if (!landHeaderItem) {
+        console.log('parseLandRecords: Page 1 "Land Ownership Details" header not found');
+        continue;
+      }
+      const headerEndItem = pageItems.find((item) =>
+        /Acre|Hectare/i.test(item.str)
+      );
+      dataStartY = headerEndItem ? headerEndItem.y - 3 : landHeaderItem.y - 80;
+    } else {
+      const headerEndItem = pageItems.find((item) =>
+        /Acre|Hectare/i.test(item.str)
+      );
+      if (headerEndItem) {
+        dataStartY = headerEndItem.y - 3;
       }
     }
-    // Skip rows that have no useful data (e.g., all empty)
-    if (Object.keys(record).length > 0) {
-      rawRows.push(record);
+
+    const footerItem = pageItems.find((item) =>
+      /about:blank|^\s*\d+\s*\/\s*\d+\s*$/i.test(item.str.trim()) ||
+      /Annexure/i.test(item.str) ||
+      /This\s*Card\s*Is\s*For\s*Personal/i.test(item.str) ||
+      /Disclaimer/i.test(item.str) ||
+      /Consent/i.test(item.str)
+    );
+    if (footerItem) {
+      pageEndY = footerItem.y - 3;
+    }
+
+    const pageDataItems = pageItems.filter(
+      (item) => item.y < dataStartY && item.y > pageEndY
+    );
+
+    if (pageDataItems.length === 0) continue;
+
+    const pageRows = groupIntoRowsWithY(pageDataItems);
+    console.log(`parseLandRecords: Page ${p} parsed into ${pageRows.length} Y-lines`);
+
+    for (const { cells, y } of pageRows) {
+      if (stopParsing) break;
+
+      const rowText = cells.map((cell) => cell.text).join(' ');
+
+      if (/about:blank/i.test(rowText) || /^\s*\d+\s*\/\s*\d+\s*$/i.test(rowText.trim())) {
+        continue;
+      }
+
+      if (
+        /Annexure/i.test(rowText) ||
+        /This\s*Card\s*Is\s*For\s*Personal/i.test(rowText) ||
+        /Disclaimer/i.test(rowText) ||
+        /Consent/i.test(rowText) ||
+        /I\s*agree\s*to/i.test(rowText) ||
+        /Farmer\s*Name/i.test(rowText) ||
+        /Date\s*:/i.test(rowText) ||
+        /म\s*,\s*रा/i.test(rowText)
+      ) {
+        console.log(`parseLandRecords: Stop condition met on Page ${p}: "${rowText}"`);
+        stopParsing = true;
+        break;
+      }
+
+      const isHeaderRow = cells.some((cell) =>
+        /State\/UT|District|Sub\s*District|Village|Survey\s*No|S\/S\s*no|Owner\s*Name|Identifier|Owner\s*Type|Share\s*Type|Extent|Acre|Hectare/i.test(cell.text)
+      );
+      if (isHeaderRow) {
+        continue;
+      }
+
+      const gridRowCells = Array(12).fill('');
+      for (const cell of cells) {
+        const colIdx = assignColumnByRange(cell.startX);
+        if (colIdx >= 0) {
+          gridRowCells[colIdx] = (gridRowCells[colIdx] ? `${gridRowCells[colIdx]} ${cell.text.trim()}` : cell.text.trim());
+        }
+      }
+
+      gridRows.push({ y, cells: gridRowCells });
     }
   }
 
-  // Merge continuation rows: if a row has fewer columns than the first row,
-  // it's likely a continuation (e.g., "DARBHANGA" split as "DARBHA" + "NGA")
-  const mergedRows: Record<string, string>[] = [];
-  for (const rawRow of rawRows) {
-    const filledCols = Object.keys(rawRow).filter((k) => rawRow[k].trim());
-    
-    // A continuation row typically has fewer filled columns and no area values
-    const hasArea = rawRow.landArea || rawRow.extentAssigned;
-    const isNewRow = filledCols.length >= 4 || hasArea;
+  const mergedGridRows: { y: number; cells: string[] }[] = [];
+  for (const gridRow of gridRows) {
+    const hasAreaValue = (gridRow.cells[10].trim() && /\d+/.test(gridRow.cells[10])) ||
+                         (gridRow.cells[11].trim() && /\d+/.test(gridRow.cells[11]));
 
-    if (isNewRow || mergedRows.length === 0) {
-      mergedRows.push({ ...rawRow });
+    if (mergedGridRows.length === 0) {
+      if (hasAreaValue) {
+        mergedGridRows.push({ ...gridRow, cells: [...gridRow.cells] });
+      }
+      continue;
+    }
+
+    if (hasAreaValue) {
+      mergedGridRows.push({ ...gridRow, cells: [...gridRow.cells] });
     } else {
-      // Merge into previous row by appending text
-      const prev = mergedRows[mergedRows.length - 1];
-      for (const [key, value] of Object.entries(rawRow)) {
-        if (value.trim()) {
-          prev[key] = (prev[key] ? `${prev[key]}${key === 'surveyNumber' ? ', ' : ''}${value.trim()}` : value.trim());
+      const prev = mergedGridRows[mergedGridRows.length - 1];
+      for (let i = 0; i < 12; i++) {
+        const val = gridRow.cells[i].trim();
+        if (val) {
+          prev.cells[i] = (prev.cells[i] ? `${prev.cells[i]} ${val}` : val);
         }
       }
     }
   }
 
-  // Convert to LandRecord objects
   const records: LandRecord[] = [];
-  for (const row of mergedRows) {
+  const seenKeys = new Set<string>();
+
+  for (const row of mergedGridRows) {
+    const cleanCell = (val: string) => val.trim().replace(/\s+/g, ' ').replace(/[,\s]+$/, '').trim();
+
     const record: LandRecord = {
-      state: (row.state || '').trim(),
-      district: (row.district || '').trim(),
-      subDistrict: (row.subDistrict || '').trim(),
-      village: (row.village || '').trim(),
-      surveyNumber: (row.surveyNumber || '').replace(/,\s*$/, '').trim(),
-      ownerName: (row.ownerName || '').trim(),
-      identifierType: (row.identifierName || '').trim(),
-      ownerType: (row.ownerType || '').trim(),
-      shareType: (row.shareType || '').trim(),
-      landArea: (row.landArea || '').replace(/,\s*$/, '').trim(),
-      extentAssigned: (row.extentAssigned || '').replace(/,\s*$/, '').trim(),
+      state: cleanCell(row.cells[0]),
+      district: cleanCell(row.cells[1]),
+      subDistrict: cleanCell(row.cells[2]),
+      village: cleanCell(row.cells[3]),
+      surveyNumber: cleanCell(row.cells[4]),
+      surveySubNumber: cleanCell(row.cells[5]),
+      ownerName: cleanCell(row.cells[6]),
+      identifierType: cleanCell(row.cells[7]),
+      identifierName: cleanCell(row.cells[7]),
+      ownerType: cleanCell(row.cells[8]),
+      shareType: cleanCell(row.cells[9]),
+      ownerShareType: cleanCell(row.cells[9]),
+      landArea: cleanCell(row.cells[10]),
+      extentTotalArea: cleanCell(row.cells[10]),
+      extentAssigned: cleanCell(row.cells[11]),
+      extentAssignedArea: cleanCell(row.cells[11]),
     };
 
-    // Clean area values: "0.4454, ," → "0.4454"
-    record.landArea = record.landArea.replace(/[,\s]+$/, '').trim();
-    record.extentAssigned = record.extentAssigned.replace(/[,\s]+$/, '').trim();
+    if (!record.surveyNumber || !/\d+/.test(record.surveyNumber)) continue;
 
-    // Only include rows with at least a state or survey number
-    if (record.state || record.surveyNumber) {
-      records.push(record);
-      console.log('  Land record:', JSON.stringify(record));
+    const dupKey = `${record.state}|${record.district}|${record.subDistrict}|${record.village}|${record.surveyNumber}|${record.surveySubNumber}|${record.ownerName}|${record.extentTotalArea}`;
+    if (seenKeys.has(dupKey)) {
+      console.log('parseLandRecords: Duplicate row skipped:', dupKey);
+      continue;
     }
+    seenKeys.add(dupKey);
+
+    records.push(record);
+    console.log('  Land record:', JSON.stringify(record));
   }
 
-  console.log(`parseLandRecords: parsed ${records.length} records`);
+  console.table(records);
+  console.log('landRecords.length =', records.length);
   return records;
 }
 
@@ -601,6 +694,10 @@ export function parseFarmerRegistryPDF(
     address: (address || localAddress).slice(0, 60),
     landRecords: landRecords.length,
   });
+
+  console.log("=== PARSER DEBUG ===");
+  console.table(landRecords);
+  console.log("Parser records:", landRecords.length);
 
   return {
     farmerName,

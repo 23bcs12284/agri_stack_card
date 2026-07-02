@@ -6,12 +6,17 @@ export interface LandRecord {
   subDistrict: string;
   village: string;
   surveyNumber: string;
+  surveySubNumber?: string;
   ownerName: string;
   identifierType: string;   // Identifier name & Type
+  identifierName?: string;
   ownerType: string;
   shareType: string;
+  ownerShareType?: string;
   landArea: string;         // Extent Total Area
+  extentTotalArea?: string;
   extentAssigned: string;   // Extent Assigned Area
+  extentAssignedArea?: string;
 }
 
 export interface FarmerData {
@@ -84,6 +89,14 @@ export const FarmerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Apply Theme class to document root
+  useEffect(() => {
+    if (farmerData) {
+      console.log("=== CONTEXT DEBUG ===");
+      console.table(farmerData.landRecords);
+      console.log("Context records:", farmerData.landRecords.length);
+    }
+  }, [farmerData]);
+
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {

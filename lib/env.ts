@@ -22,7 +22,7 @@ interface EnvConfig {
 
 const env: EnvConfig = {
   PORT: parseInt(process.env.PORT || '5001', 10),
-  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:rFwLYLEeq2uCKlgB@db.gehykpmbhajlkvdzovot.supabase.co:5432/postgres',
+  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres.gehykpmbhajlkvdzovot:rFwLYLEeq2uCKlgB@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1',
   JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key-change-in-production',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '15m',

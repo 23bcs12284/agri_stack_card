@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id                Int          @id @default(autoincrement())
+  name              String
+  email             String       @unique
+  password          String?
+  googleId          String?      @unique
+  role              Role         @default(USER)
+  phone             String?
+  avatar            String?
+  emailVerified     Boolean      @default(false)
+  verificationToken String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  paymentStatus     String       @default("UNPAID")
+  subscriptionType  String       @default("FREE")
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  cards             FarmerCard[]
+  payments          Payment[]
+  sessions          Session[]
+
+  @@map("users")
+}
+
+model Payment {
+  id                Int       @id @default(autoincrement())
+  userId            Int?
+  razorpayOrderId   String    @unique
+  razorpayPaymentId String?   @unique
+  razorpaySignature String?   @db.Text
+  amount            Float
+  currency          String    @default("INR")
+  status            String
+  receipt           String?
+  paymentMethod     String?
+  paidAt            DateTime?
+  createdAt         DateTime  @default(now())
+
+  user              User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("payments")
+}
+
+model Session {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  deviceId         String
+  refreshTokenHash String   @db.Text
+  ipAddress        String?
+  browser          String?
+  os               String?
+  expiresAt        DateTime
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model FarmerCard {
+  id           Int          @id @default(autoincrement())
+  userId       Int
+  farmerName   String
+  hindiName    String       @default("")
+  dob          String       @default("")
+  gender       String       @default("")
+  age          String       @default("")
+  category     String       @default("General")
+  mobile       String       @default("")
+  aadhaar      String       @default("")
+  farmerId     String       @default("")
+  enrollmentId String       @default("")
+  address      String       @db.Text
+  photo        String       @db.Text
+  qr           String       @db.Text
+  pdfPath      String       @default("")
+  jsonData     Json?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  landRecords  LandRecord[]
+
+  @@index([userId])
+  @@index([farmerId])
+  @@index([enrollmentId])
+  @@map("farmer_cards")
+}
+
+model LandRecord {
+  id             Int        @id @default(autoincrement())
+  farmerCardId   Int
+  state          String     @default("")
+  district       String     @default("")
+  subDistrict    String     @default("")
+  village        String     @default("")
+  surveyNumber   String     @default("")
+  surveySubNumber String    @default("")
+  ownerName      String     @default("")
+  identifierName String     @default("")
+  ownerType      String     @default("")
+  shareType      String     @default("")
+  totalArea      String     @default("")
+  assignedArea   String     @default("")
+  createdAt      DateTime   @default(now())
+
+  farmerCard     FarmerCard @relation(fields: [farmerCardId], references: [id], onDelete: Cascade)
+
+  @@index([farmerCardId])
+  @@map("land_records")
+}

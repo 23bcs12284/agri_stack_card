@@ -1,39 +1,21 @@
 {
-  "name": "krishi-card",
+  "name": "agristack-krishi-card",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "description": "AgriStack Farmer ID Card Generator - Full Stack Application",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@tailwindcss/vite": "^4.3.2",
-    "framer-motion": "^12.42.0",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^4.2.1",
-    "jsqr": "^1.4.0",
-    "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^4.8.69",
-    "puppeteer": "^25.2.1",
-    "qrcode": "^1.5.4",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-icons": "^5.7.0",
-    "react-router-dom": "^7.18.1",
-    "tailwindcss": "^4.3.2",
-    "tesseract.js": "^7.0.0"
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "db:migrate": "cd backend && npx prisma migrate dev",
+    "db:seed": "cd backend && npx prisma db seed",
+    "db:studio": "cd backend && npx prisma studio",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install"
   },
   "devDependencies": {
-    "@types/node": "^24.13.2",
-    "@types/qrcode": "^1.5.6",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "oxlint": "^1.71.0",
-    "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "concurrently": "^9.1.0"
   }
 }

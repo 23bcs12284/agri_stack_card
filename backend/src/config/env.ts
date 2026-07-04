@@ -23,7 +23,7 @@ interface EnvConfig {
 
 const env: EnvConfig = {
   PORT: parseInt(process.env.PORT || '5001', 10),
-  DATABASE_URL: process.env.DATABASE_URL || 'mysql://root:password@localhost:3306/agristack',
+  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/agristack',
   JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key-change-in-production',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '15m',

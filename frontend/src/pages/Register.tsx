@@ -220,7 +220,7 @@ const Register: React.FC = () => {
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'Agri Stack Card',
-        description: 'One-Time Registration Fee (₹300)',
+        description: 'One-Time Registration Fee (₹299)',
         order_id: orderData.orderId,
         handler: async (response: any) => {
           try {
@@ -284,6 +284,13 @@ const Register: React.FC = () => {
   };
 
   const strength = getPasswordStrength();
+
+  const isFormFilled = 
+    name.trim().length > 0 &&
+    validateEmail(email) &&
+    validatePhone(phone) &&
+    (isGoogleSignup || (password.length >= 6 && password === confirmPassword)) &&
+    acceptTerms;
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-12">
@@ -512,6 +519,8 @@ const Register: React.FC = () => {
                     />
                     Creating account...
                   </span>
+                ) : isFormFilled ? (
+                  'Pay ₹299 & Register'
                 ) : (
                   'Create Account'
                 )}

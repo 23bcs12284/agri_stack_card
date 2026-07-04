@@ -16,7 +16,7 @@ export class PaymentService {
   }
 
   /**
-   * Create Razorpay order for ₹300 registration fee
+   * Create Razorpay order for ₹299 registration fee
    */
   async createRegistrationOrder(email: string): Promise<any> {
     // 1. Check if user already exists and is paid
@@ -29,7 +29,7 @@ export class PaymentService {
     const receipt = `rcpt_${crypto.randomBytes(8).toString('hex')}`;
 
     const order = await razorpay.orders.create({
-      amount: 30000, // ₹300 in paise
+      amount: 29900, // ₹299 in paise
       currency: 'INR',
       receipt,
     });
@@ -38,14 +38,14 @@ export class PaymentService {
     await prisma.payment.upsert({
       where: { razorpayOrderId: order.id },
       update: {
-        amount: 300,
+        amount: 299,
         currency: 'INR',
         status: 'PENDING',
         receipt,
       },
       create: {
         razorpayOrderId: order.id,
-        amount: 300,
+        amount: 299,
         currency: 'INR',
         status: 'PENDING',
         receipt,
@@ -55,7 +55,7 @@ export class PaymentService {
     return {
       exists: false,
       orderId: order.id,
-      amount: 30000,
+      amount: 29900,
       currency: 'INR',
     };
   }

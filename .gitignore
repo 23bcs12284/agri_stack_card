@@ -1,37 +1,50 @@
 # Dependencies
-node_modules/
-frontend/node_modules/
-backend/node_modules/
+/node_modules
+/.pnp
+.pnp.js
 
-# Build output
-dist/
-frontend/dist/
-backend/dist/
+# Testing
+/coverage
 
-# Environment files
+# Next.js Build Output
+/.next/
+/out/
+/build
+
+# TS build info
+*.tsbuildinfo
+
+# Environment Files (sensitive credentials)
 .env
-backend/.env
-frontend/.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# IDE
-.vscode/
+# Vercel Deployment
+.vercel
+
+# IDEs and Editors
 .idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# OS
+# OS Files
 .DS_Store
 Thumbs.db
+Desktop.ini
 
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Uploads (user generated)
-backend/uploads/pdfs/*
-backend/uploads/photos/*
-backend/uploads/qrcodes/*
-!backend/uploads/pdfs/.gitkeep
-!backend/uploads/photos/.gitkeep
-!backend/uploads/qrcodes/.gitkeep
-
-# Prisma
-backend/prisma/migrations/
+# Project Specific (Scratch scripts and uploaded assets)
+/scratch/
+/uploads/

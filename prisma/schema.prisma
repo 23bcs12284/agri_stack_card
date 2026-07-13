@@ -42,9 +42,9 @@ model User {
 model Payment {
   id                Int       @id @default(autoincrement())
   userId            Int?
-  razorpayOrderId   String    @unique
-  razorpayPaymentId String?   @unique
-  razorpaySignature String?   @db.Text
+  cashfreeOrderId   String?   @unique
+  cashfreePaymentId String?   @unique
+  cashfreeReference String?   @db.Text
   amount            Float
   currency          String    @default("INR")
   status            String

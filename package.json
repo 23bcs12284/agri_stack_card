@@ -23,7 +23,6 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.8.69",
     "qrcode": "^1.5.4",
-    "razorpay": "^2.9.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.80.0",

@@ -71,3 +71,7 @@
 - [x] Frontend builds without errors
 - [x] Backend starts without errors
 - [x] README with setup instructions
+
+## Phase 8: Payment Gateway Migration
+- [x] Replace Razorpay with Cashfree APIs and SDK redirection
+- [x] Sync PostgreSQL database tables with updated Cashfree schema

@@ -467,8 +467,8 @@ export default function AdminDashboardPage() {
                       ) : (
                         stats.recentPayments.map((p: any) => (
                           <tr key={p.id} className="border-b border-slate-50 dark:border-slate-800/40 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 text-sm">
-                            <td className="px-5 py-3.5 font-mono text-xs text-slate-650 dark:text-slate-405">{p.razorpayOrderId}</td>
-                            <td className="px-5 py-3.5 font-mono text-xs text-slate-655 dark:text-slate-405">{p.razorpayPaymentId || '—'}</td>
+                            <td className="px-5 py-3.5 font-mono text-xs text-slate-650 dark:text-slate-405">{p.cashfreeOrderId}</td>
+                            <td className="px-5 py-3.5 font-mono text-xs text-slate-655 dark:text-slate-405">{p.cashfreePaymentId || '—'}</td>
                             <td className="px-5 py-3.5 font-semibold text-slate-700 dark:text-white">₹{p.amount}</td>
                             <td className="px-5 py-3.5">
                               <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${

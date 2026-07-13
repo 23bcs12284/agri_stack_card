@@ -31,9 +31,7 @@ export class AuthService {
     password?: string,
     phone?: string,
     googleId?: string,
-    razorpayOrderId?: string,
-    razorpayPaymentId?: string,
-    razorpaySignature?: string,
+    cashfreeOrderId?: string,
     deviceId?: string,
     ipAddress?: string,
     userAgent?: string
@@ -44,7 +42,7 @@ export class AuthService {
     }
 
     // 2. Validate Payment parameters
-    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    if (!cashfreeOrderId) {
       throw ApiError.badRequest('One-time registration fee payment details are required');
     }
 
@@ -52,15 +50,17 @@ export class AuthService {
       throw ApiError.badRequest('Device identification fingerprint is required');
     }
 
-    // 3. Verify Razorpay Payment Signature
-    const isValid = paymentService.verifyPaymentSignature(
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature
-    );
-    if (!isValid) {
-      throw ApiError.badRequest('Invalid payment signature verification failed');
+    // 3. Verify Cashfree Payment status with cashfree server
+    const isPaid = await paymentService.verifyOrderPayment(cashfreeOrderId);
+    if (!isPaid) {
+      throw ApiError.badRequest('Payment order verification failed: Order is not paid');
     }
+
+    // Get successful payment details from Cashfree
+    const paymentDetails = await paymentService.getOrderPaymentDetails(cashfreeOrderId);
+    const cashfreePaymentId = paymentDetails?.paymentId || null;
+    const cashfreeReference = paymentDetails?.reference || null;
+    const paymentMethod = paymentDetails?.paymentMethod || 'unknown';
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser && existingUser.paymentStatus === 'PAID') {
@@ -73,11 +73,11 @@ export class AuthService {
     return await prisma.$transaction(async (tx) => {
       // Fetch payment record
       const payment = await tx.payment.findUnique({
-        where: { razorpayOrderId },
+        where: { cashfreeOrderId },
       });
 
       if (!payment) {
-        throw ApiError.badRequest('Razorpay order ID record not found');
+        throw ApiError.badRequest('Cashfree order ID record not found');
       }
 
       if (payment.status === 'PAID' && payment.userId !== null) {
@@ -118,8 +118,9 @@ export class AuthService {
       await tx.payment.update({
         where: { id: payment.id },
         data: {
-          razorpayPaymentId,
-          razorpaySignature,
+          cashfreePaymentId,
+          cashfreeReference,
+          paymentMethod,
           status: 'PAID',
           userId: user.id,
           paidAt: new Date(),

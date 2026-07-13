@@ -11,9 +11,7 @@ export const registerApi = (
   password?: string,
   phone?: string,
   googleId?: string,
-  razorpayOrderId?: string,
-  razorpayPaymentId?: string,
-  razorpaySignature?: string
+  cashfreeOrderId?: string
 ) =>
   api.post('/api/auth/register', {
     name,
@@ -21,16 +19,11 @@ export const registerApi = (
     password,
     phone,
     googleId,
-    razorpayOrderId,
-    razorpayPaymentId,
-    razorpaySignature,
+    cashfreeOrderId,
   });
 
-export const createPaymentOrderApi = (email: string) =>
-  api.post('/api/auth/payment-order', { email });
-
-export const getRazorpayKeyApi = () =>
-  api.get('/api/auth/razorpay-key');
+export const createPaymentOrderApi = (email: string, name?: string, phone?: string) =>
+  api.post('/api/auth/payment-order', { email, name, phone });
 
 export const logoutApi = () => api.post('/api/auth/logout');
 

@@ -10,9 +10,9 @@ interface EnvConfig {
   NODE_ENV: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
-  RAZORPAY_KEY_ID: string;
-  RAZORPAY_KEY_SECRET: string;
-  RAZORPAY_WEBHOOK_SECRET: string;
+  CASHFREE_APP_ID: string;
+  CASHFREE_SECRET_KEY: string;
+  CASHFREE_MODE: string;
   FRONTEND_URL: string;
   BACKEND_URL: string;
   SUPABASE_URL: string;
@@ -32,9 +32,9 @@ const env: EnvConfig = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '969774300299-s5o5lq1vtkgebu3i29ma87757v7gec84.apps.googleusercontent.com',
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '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',
-  RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || 'rzp_test_SUtmFpZbeLLdGw',
-  RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || '4qCtGrD63whhZnfMViwnoEbN',
-  RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || 'agriStack@2026#Webhook$8KpL91x!',
+  CASHFREE_APP_ID: process.env.CASHFREE_APP_ID || '1335443b231730648f579c5b1a73445331',
+  CASHFREE_SECRET_KEY: process.env.CASHFREE_SECRET_KEY || 'cfsk_ma_prod_3a6b6f6b1c4f2d9b126974da95ae3c97_ec5c7cfa',
+  CASHFREE_MODE: process.env.CASHFREE_MODE || 'production',
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
   BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:5001',
   SUPABASE_URL: process.env.SUPABASE_URL || 'https://gehykpmbhajlkvdzovot.supabase.co',

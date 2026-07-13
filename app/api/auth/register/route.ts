@@ -13,9 +13,7 @@ export async function POST(req: NextRequest) {
       password,
       phone,
       googleId,
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
+      cashfreeOrderId,
     } = body;
 
     const deviceId = req.headers.get('x-device-id') || 'unknown-device';
@@ -28,9 +26,7 @@ export async function POST(req: NextRequest) {
       password,
       phone,
       googleId,
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
+      cashfreeOrderId,
       deviceId,
       ipAddress,
       userAgent

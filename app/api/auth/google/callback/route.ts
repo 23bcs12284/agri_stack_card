@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import env from '@/lib/env';
 
 export async function GET(req: NextRequest) {
-  const origin = req.nextUrl.origin;
+  const origin = process.env.NODE_ENV === 'production' ? 'https://agri-stack-card.vercel.app' : req.nextUrl.origin;
   try {
     const code = req.nextUrl.searchParams.get('code');
     const state = req.nextUrl.searchParams.get('state');

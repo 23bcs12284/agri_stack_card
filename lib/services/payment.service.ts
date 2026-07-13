@@ -1,42 +1,66 @@
-import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import env from '@/lib/env';
 import { ApiError } from '@/lib/utils/ApiError';
 
 export class PaymentService {
-  private getRazorpayInstance() {
-    if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
-      throw new Error('Razorpay keys are not configured in environment variables');
-    }
-    return new Razorpay({
-      key_id: env.RAZORPAY_KEY_ID,
-      key_secret: env.RAZORPAY_KEY_SECRET,
-    });
+  private getBaseUrl() {
+    return env.CASHFREE_MODE === 'production'
+      ? 'https://api.cashfree.com/pg'
+      : 'https://sandbox.cashfree.com/pg';
   }
 
   /**
-   * Create Razorpay order for ₹299 registration fee
+   * Create Cashfree order for ₹299 registration fee
    */
-  async createRegistrationOrder(email: string): Promise<any> {
+  async createRegistrationOrder(email: string, name?: string, phone?: string, origin?: string): Promise<any> {
     // 1. Check if user already exists and is paid
     const user = await prisma.user.findUnique({ where: { email } });
     if (user && user.paymentStatus === 'PAID') {
       return { exists: true, message: 'User already registered and paid' };
     }
 
-    const razorpay = this.getRazorpayInstance();
+    const orderId = `order_${crypto.randomBytes(8).toString('hex')}`;
     const receipt = `rcpt_${crypto.randomBytes(8).toString('hex')}`;
+    const baseUrl = this.getBaseUrl();
 
-    const order = await razorpay.orders.create({
-      amount: 29900, // ₹299 in paise
-      currency: 'INR',
-      receipt,
+    const payload = {
+      order_id: orderId,
+      order_amount: 299.00,
+      order_currency: 'INR',
+      customer_details: {
+        customer_id: `cust_${email.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 45)}`,
+        customer_name: name || 'Guest User',
+        customer_email: email,
+        customer_phone: phone || '9999999999',
+      },
+      order_meta: {
+        return_url: `${origin || 'http://localhost:3000'}/register?status=callback&order_id={order_id}`,
+      },
+    };
+
+    const response = await fetch(`${baseUrl}/orders`, {
+      method: 'POST',
+      headers: {
+        'x-client-id': env.CASHFREE_APP_ID,
+        'x-client-secret': env.CASHFREE_SECRET_KEY,
+        'x-api-version': '2023-08-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[CASHFREE] Failed to create order:', errorText);
+      throw ApiError.badRequest('Failed to create payment order with Cashfree');
+    }
+
+    const orderData = await response.json() as any;
 
     // 2. Store payment record with PENDING status
     await prisma.payment.upsert({
-      where: { razorpayOrderId: order.id },
+      where: { cashfreeOrderId: orderId },
       update: {
         amount: 299,
         currency: 'INR',
@@ -44,7 +68,7 @@ export class PaymentService {
         receipt,
       },
       create: {
-        razorpayOrderId: order.id,
+        cashfreeOrderId: orderId,
         amount: 299,
         currency: 'INR',
         status: 'PENDING',
@@ -54,67 +78,113 @@ export class PaymentService {
 
     return {
       exists: false,
-      orderId: order.id,
-      amount: 29900,
+      orderId,
+      paymentSessionId: orderData.payment_session_id,
+      amount: 299.00,
       currency: 'INR',
     };
   }
 
   /**
-   * Verify signature of Razorpay payment callback
+   * Verify status of Cashfree payment order
    */
-  verifyPaymentSignature(orderId: string, paymentId: string, signature: string): boolean {
-    const text = `${orderId}|${paymentId}`;
-    const generated_signature = crypto
-      .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
-      .update(text)
-      .digest('hex');
+  async verifyOrderPayment(orderId: string): Promise<boolean> {
+    const baseUrl = this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/orders/${orderId}`, {
+      method: 'GET',
+      headers: {
+        'x-client-id': env.CASHFREE_APP_ID,
+        'x-client-secret': env.CASHFREE_SECRET_KEY,
+        'x-api-version': '2023-08-01',
+      },
+    });
 
-    return generated_signature === signature;
+    if (!response.ok) {
+      console.error(`[CASHFREE] Failed to fetch order status. HTTP status: ${response.status}`);
+      return false;
+    }
+
+    const orderData = await response.json() as any;
+    console.log(`[CASHFREE] Order status for ${orderId}: ${orderData.order_status}`);
+    return orderData.order_status === 'PAID';
   }
 
   /**
-   * Verify Razorpay Webhook signature
+   * Get payments for an order to extract payment details
    */
-  verifyWebhookSignature(body: string, signature: string): boolean {
-    if (!env.RAZORPAY_WEBHOOK_SECRET) {
-      throw new Error('Razorpay webhook secret is not configured');
-    }
-    const expectedSignature = crypto
-      .createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
-      .update(body)
-      .digest('hex');
+  async getOrderPaymentDetails(orderId: string): Promise<any> {
+    const baseUrl = this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/orders/${orderId}/payments`, {
+      method: 'GET',
+      headers: {
+        'x-client-id': env.CASHFREE_APP_ID,
+        'x-client-secret': env.CASHFREE_SECRET_KEY,
+        'x-api-version': '2023-08-01',
+      },
+    });
 
-    return expectedSignature === signature;
+    if (!response.ok) {
+      console.error(`[CASHFREE] Failed to fetch order payments. HTTP status: ${response.status}`);
+      return null;
+    }
+
+    const payments = await response.json() as any[];
+    const successfulPayment = payments.find((p) => p.payment_status === 'SUCCESS');
+    if (!successfulPayment) {
+      return null;
+    }
+
+    return {
+      paymentId: successfulPayment.cf_payment_id,
+      paymentMethod: successfulPayment.payment_group || 'unknown',
+      reference: successfulPayment.bank_reference || null,
+    };
+  }
+
+  /**
+   * Verify Cashfree Webhook signature
+   */
+  verifyWebhookSignature(rawBody: string, signature: string, timestamp: string): boolean {
+    const signatureData = timestamp + rawBody;
+    const computedSignature = crypto
+      .createHmac('sha256', env.CASHFREE_SECRET_KEY)
+      .update(signatureData)
+      .digest('base64');
+
+    return computedSignature === signature;
   }
 
   /**
    * Handle Webhook events
    */
   async handleWebhook(event: string, payload: any): Promise<void> {
-    const paymentEntity = payload.payment.entity;
-    const orderId = paymentEntity.order_id;
-    const paymentId = paymentEntity.id;
-    const amount = paymentEntity.amount / 100; // convert paise to INR
-    const currency = paymentEntity.currency;
-    const paymentMethod = paymentEntity.method;
+    const orderDetails = payload.order;
+    if (!orderDetails) return;
+
+    const orderId = orderDetails.order_id;
+    const amount = orderDetails.order_amount;
+    const currency = orderDetails.order_currency;
+
+    const paymentDetails = payload.payment;
+    const paymentId = paymentDetails ? paymentDetails.cf_payment_id : null;
+    const paymentMethod = paymentDetails ? paymentDetails.payment_group : 'unknown';
 
     console.log(`[PAYMENT WEBHOOK] Event: ${event}, Order: ${orderId}, Payment: ${paymentId}`);
 
     if (!orderId) return;
 
-    if (event === 'payment.captured' || event === 'order.paid') {
+    if (event === 'ORDER_PAID') {
       // Find the payment record
       const payment = await prisma.payment.findUnique({
-        where: { razorpayOrderId: orderId },
+        where: { cashfreeOrderId: orderId },
       });
 
       if (!payment) {
         // Webhook retry or out-of-order execution: create payment record if missing
         await prisma.payment.create({
           data: {
-            razorpayOrderId: orderId,
-            razorpayPaymentId: paymentId,
+            cashfreeOrderId: orderId,
+            cashfreePaymentId: paymentId,
             amount,
             currency,
             status: 'PAID',
@@ -134,7 +204,7 @@ export class PaymentService {
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
-          razorpayPaymentId: paymentId,
+          cashfreePaymentId: paymentId,
           status: 'PAID',
           paymentMethod,
           paidAt: new Date(),
@@ -148,16 +218,16 @@ export class PaymentService {
           data: { paymentStatus: 'PAID', subscriptionType: 'ONE_TIME' },
         });
       }
-    } else if (event === 'payment.failed') {
+    } else if (event === 'ORDER_FAILED') {
       await prisma.payment.upsert({
-        where: { razorpayOrderId: orderId },
+        where: { cashfreeOrderId: orderId },
         update: {
-          razorpayPaymentId: paymentId,
+          cashfreePaymentId: paymentId,
           status: 'FAILED',
         },
         create: {
-          razorpayOrderId: orderId,
-          razorpayPaymentId: paymentId,
+          cashfreeOrderId: orderId,
+          cashfreePaymentId: paymentId,
           amount,
           currency,
           status: 'FAILED',

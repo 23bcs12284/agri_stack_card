@@ -245,15 +245,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../app/api/auth/razorpay-key/route.ts
-{
-  type __IsExpected<Specific extends RouteHandlerConfig<"/api/auth/razorpay-key">> = Specific
-  const handler = {} as typeof import("../../app/api/auth/razorpay-key/route.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../app/api/auth/refresh/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/auth/refresh">> = Specific
@@ -290,10 +281,10 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../app/api/auth/webhook/razorpay/route.ts
+// Validate ../../app/api/auth/webhook/cashfree/route.ts
 {
-  type __IsExpected<Specific extends RouteHandlerConfig<"/api/auth/webhook/razorpay">> = Specific
-  const handler = {} as typeof import("../../app/api/auth/webhook/razorpay/route.js")
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/auth/webhook/cashfree">> = Specific
+  const handler = {} as typeof import("../../app/api/auth/webhook/cashfree/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
